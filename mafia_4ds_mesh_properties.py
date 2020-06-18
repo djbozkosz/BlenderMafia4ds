@@ -1,5 +1,3 @@
-import bpy
-
 from bpy import props
 from bpy import types
 from bpy import utils
@@ -18,7 +16,7 @@ class Mafia4ds_GlobalMeshProperties(types.PropertyGroup):
     )
     
     VisualType : props.EnumProperty(
-        name = "VisualType",
+        name = "Visual Type",
         items = [
             ("0x00", "Mesh",        ""),
             ("0x02", "SingleMesh",  ""),
@@ -46,7 +44,6 @@ class Mafia4ds_MeshProperties(types.Panel):
         meshProps = context.object.MeshProps
         layout    = self.layout
         
-        row = layout.row()
         layout.prop(meshProps, "Type")
         layout.prop(meshProps, "VisualType")
         layout.prop(meshProps, "Parameters")
