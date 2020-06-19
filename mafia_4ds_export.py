@@ -1,5 +1,7 @@
 import struct
 
+from bpy        import context
+from bpy        import data
 from bpy        import ops
 from bpy        import props
 from bpy        import types
@@ -11,9 +13,53 @@ class Mafia4ds_Exporter:
     def __init__(self, config):
         self.Config = config
     
+    
+    def GetTexture(self, material, name):
+        for node in material.node_tree.nodes:
+            if node.type != "BSDF_PRINCIPLED":
+                continue
+            
+            links = node.inputs[name].links
+            if len(links) == 0:
+                continue
+            
+            return links[0].from_node.image.name
+    
+    
+    def WriteMaterial(self, writer, material):
+        diffuse = self.GetTexture(material, "Base Color")
+        env     = self.GetTexture(material, "Subsurface Color")
+        
+        if diffuse:
+            print(diffuse)
+        else:
+            print("aaa")
+            
+        if env:
+            print(env)
+        else:
+            print("bbb")
+        #writer.write()
+    
+    
+    def WriteFile(self, writer):
+        writer.write("4DS\0".encode("ascii")); # fourcc
+        writer.write(struct.pack("H", 0x1d))   # mafia 4ds version
+        writer.write(struct.pack("Q", 0))      # guid
+        
+        # write all materials
+        materials = data.materials
+        writer.write(struct.pack("H", len(materials)))
+        
+        for material in materials:
+            self.WriteMaterial(writer, material)
+    
+    
     def Export(self, filename):
         writer = open(filename, "wb")
-        writer.write(struct.pack("fff", 1.0, 2.0, 3.0))
+        
+        self.WriteFile(writer)
+        
         writer.close()
         
         return {'FINISHED'}
