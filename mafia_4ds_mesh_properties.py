@@ -8,10 +8,10 @@ class Mafia4ds_GlobalMeshProperties(types.PropertyGroup):
         name = "Type",
         items = [
             ("0x01", "Visual", ""),
-            ("0x05", "Sector", ""),
-            ("0x06", "Dummy",  ""),
-            ("0x07", "Target", ""),
-            ("0x0a", "Joint",  "")
+            #("0x05", "Sector", ""),
+            #("0x06", "Dummy",  ""),
+            #("0x07", "Target", ""),
+            #("0x0a", "Joint",  "")
         ]
     )
     
@@ -19,19 +19,19 @@ class Mafia4ds_GlobalMeshProperties(types.PropertyGroup):
         name = "Visual Type",
         items = [
             ("0x00", "Mesh",        ""),
-            ("0x02", "SingleMesh",  ""),
-            ("0x03", "SingleMorph", ""),
-            ("0x04", "Billboard",   ""),
-            ("0x05", "Morph",       ""),
-            ("0x06", "Glow",        ""),
-            ("0x08", "Mirror",      "")
+            #("0x02", "SingleMesh",  ""),
+            #("0x03", "SingleMorph", ""),
+            #("0x04", "Billboard",   ""),
+            #("0x05", "Morph",       ""),
+            #("0x06", "Glow",        ""),
+            #("0x08", "Mirror",      "")
         ]
     )
     
     Parameters : props.StringProperty(name = "Parameters")
 
 
-class Mafia4ds_MeshProperties(types.Panel):
+class Mafia4ds_MeshPropertiesPanel(types.Panel):
     "Mafia 4ds Mesh Properties"
     bl_label       = "Mafia 4ds Mesh Properties"
     bl_idname      = "OBJECT_PT_mafia_4ds_mesh_properties"
@@ -51,16 +51,16 @@ class Mafia4ds_MeshProperties(types.Panel):
 
 def register():
     utils.register_class(Mafia4ds_GlobalMeshProperties)
-    utils.register_class(Mafia4ds_MeshProperties)
+    utils.register_class(Mafia4ds_MeshPropertiesPanel)
     
     types.Object.MeshProps = props.PointerProperty(type = Mafia4ds_GlobalMeshProperties)
 
 
 def unregister():
     utils.unregister_class(Mafia4ds_GlobalMeshProperties)
-    utils.unregister_class(Mafia4ds_MeshProperties)
+    utils.unregister_class(Mafia4ds_MeshPropertiesPanel)
     
-    del types.Scene.Aaa
+    del types.Object.MeshProps
 
 
 if __name__ == "__main__":
