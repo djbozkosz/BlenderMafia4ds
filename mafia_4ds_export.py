@@ -1,3 +1,4 @@
+import bmesh
 import struct
 
 from bpy        import context
@@ -44,7 +45,7 @@ class Mafia4ds_Exporter:
         
         writer.write(struct.pack("B", len(string)))
         
-        for c in string.upper().encode():
+        for c in string.encode():
             writer.write(struct.pack("b", c))
     
     
@@ -90,14 +91,14 @@ class Mafia4ds_Exporter:
         # env mapping
         if matProps.UseEnvTexture:
             writer.write(struct.pack("f", metallic))
-            self.WriteString(writer, matProps.EnvTexture)
+            self.WriteString(writer, matProps.EnvTexture.upper())
         
         # diffuse mapping
-        self.WriteString(writer, diffuse)
+        self.WriteString(writer, diffuse.upper())
         
         # alpha mapping
         if matProps.AddEffect and matProps.UseAlphaTexture:
-            self.WriteString(writer, matProps.AlphaTexture)
+            self.WriteString(writer, matProps.AlphaTexture.upper())
         
         # animated texture
         if matProps.AnimatedDiffuse:
@@ -111,28 +112,75 @@ class Mafia4ds_Exporter:
     def WriteVisualLod(self, writer, mesh):
         writer.write(struct.pack("f", 0.0)) # lod ratio
         
-        vertices = mesh.data.vertices.values()
+        bMesh = bmesh.new()
+        bMesh.from_mesh(mesh.data)
+        
+        bmesh.ops.triangulate(bMesh, faces = bMesh.faces[:], quad_method = "BEAUTY", ngon_method = "BEAUTY")
+        
+        vertices = bMesh.verts
         writer.write(struct.pack("H", len(vertices)))
         
-        for vertex in vertices:
-            writer.write(struct.pack("fff", vertex[0], vertex[1], vertex[2]))
+        uvLayerIdx = bMesh.loops.layers.uv.active
         
-        # face groups
+        for vertex in vertices:
+            uv = (0.0, 0.0)
+            
+            for loop in vertex.link_loops:
+                loopUV = loop[uvLayerIdx].uv
+                uv = (loopUV[0], loopUV[1])
+                break
+            
+            writer.write(struct.pack("fff", vertex.co[0], vertex.co[1], vertex.co[2]))
+            writer.write(struct.pack("fff", vertex.normal[0], vertex.normal[1], vertex.normal[2]))
+            writer.write(struct.pack("ff", uv[0], uv[1]))
+
+        faces = bMesh.faces
+        faces.sort(key = lambda face: face.material_index)
+        
+        lastMatIdx = -1
+        faceGroups = []
+        faceGroup  = []
+        
+        for face in faces:
+            if lastMatIdx != face.material_index:
+                lastMatIdx = face.material_index
+                if len(faceGroup) > 0:
+                    faceGroups.append(faceGroup)
+                    faceGroup = []
+                
+            faceGroup.append(face)
+                
+        if len(faceGroup) > 0:
+            faceGroups.append(faceGroup)
+        
+        writer.write(struct.pack("B", len(faceGroups)))
+        
+        for faceGroup in faceGroups:
+            writer.write(struct.pack("H", len(faceGroup)))
+            lastMatIdx = 0
+        
+            for face in faceGroup:
+                lastMatIdx = face.material_index + 1
+                writer.write(struct.pack("HHH", face.verts[0].index, face.verts[1].index, face.verts[2].index))
+                
+            writer.write(struct.pack("H", lastMatIdx))
+        
+        del bMesh
     
     
     def WriteVisual(self, writer, mesh):
         writer.write(struct.pack("H", 0)) # instance idx
-        writer.write(struct.pack("H", 0)) # lod count
+        writer.write(struct.pack("B", 1)) # lod count
         
         self.WriteVisualLod(writer, mesh)
     
     
     def WriteMesh(self, writer, mesh):
         meshProps = mesh.MeshProps
-        writer.write(struct.pack("B", meshProps.Type))
+        writer.write(struct.pack("B", int(meshProps.Type, 0)))
         
-        if meshProps.Type == 0x01:
-            writer.write(struct.pack("B", meshProps.VisualType))
+        if meshProps.Type == "0x01":
+            writer.write(struct.pack("B", int(meshProps.VisualType, 0)))
             writer.write(struct.pack("H", 0x2a)) # render flags
         
         writer.write(struct.pack("H", 0)) # parent idx
@@ -143,14 +191,14 @@ class Mafia4ds_Exporter:
         self.WriteString(writer, mesh.name)
         self.WriteString(writer, meshProps.Parameters)
         
-        if meshProps.Type == 0x01:
+        if meshProps.Type == "0x01":
             self.WriteVisual(writer, mesh)
     
     
     def WriteFile(self, writer):
-        writer.write("4DS\0".encode("ascii")); # fourcc
-        writer.write(struct.pack("H", 0x1d))   # mafia 4ds version
-        writer.write(struct.pack("Q", 0))      # guid
+        writer.write("4DS\0".encode()); # fourcc
+        writer.write(struct.pack("H", 0x1d)) # mafia 4ds version
+        writer.write(struct.pack("BBBBBBBB", 0x00, 0x00, 0x81, 0x4A, 0x4A, 0xD2, 0xC2, 0x01)) # guid
         
         # write all materials
         materials = data.materials
@@ -159,12 +207,19 @@ class Mafia4ds_Exporter:
         for material in materials:
             self.WriteMaterial(writer, material)
         
-        # write all meshes
-        meshes = context.scene.objects
-        writer.write(struct.pack("H", len(meshes)))
+        # write meshes
+        meshes    = context.scene.objects
+        meshCount = 0
         
         for mesh in meshes:
-            self.WriteMesh(writer, mesh)
+            if mesh.type == "MESH":
+                meshCount += 1
+        
+        writer.write(struct.pack("H", meshCount))
+        
+        for mesh in meshes:
+            if mesh.type == "MESH":
+                self.WriteMesh(writer, mesh)
         
         # allow 5ds animation
         writer.write(struct.pack("B", 0))
