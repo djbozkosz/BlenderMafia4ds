@@ -32,10 +32,14 @@ class Mafia4ds_Exporter:
             
             links = node.inputs["Base Color"].links
             if len(links) == 0:
-                continue
+                break
             
-            diffuse = links[0].from_node.image.name
-            break
+            image = links[0].from_node.image
+            
+            if not image:
+                break
+            
+            diffuse = image.name
         
         return (diffuse, emission, alpha, metallic)
     
@@ -54,10 +58,12 @@ class Mafia4ds_Exporter:
         (diffuse, emission, alpha, metallic) = self.GetMaterialData(material)
         
         # material flags
-        matFlags = 0
-        matFlags |= (0x00040000 if matProps.UseDiffuseTex   else 0)
-        matFlags |= (0x08000000 if matProps.Coloring        else 0)
+        matFlags = 0x00000001
         
+        if len(diffuse) > 0:
+            matFlags |= (0x00040000 if matProps.UseDiffuseTex   else 0)
+            
+        matFlags |= (0x08000000 if matProps.Coloring        else 0)
         matFlags |= (0x00800000 if matProps.MipMapping      else 0)
         matFlags |= (0x10000000 if matProps.TwoSided        else 0)
     
@@ -117,6 +123,7 @@ class Mafia4ds_Exporter:
         
         bmesh.ops.triangulate(bMesh, faces = bMesh.faces[:], quad_method = "BEAUTY", ngon_method = "BEAUTY")
         
+        # vertices
         vertices = bMesh.verts
         writer.write(struct.pack("H", len(vertices)))
         
@@ -130,10 +137,11 @@ class Mafia4ds_Exporter:
                 uv = (loopUV[0], loopUV[1])
                 break
             
-            writer.write(struct.pack("fff", vertex.co[0], vertex.co[1], vertex.co[2]))
-            writer.write(struct.pack("fff", vertex.normal[0], vertex.normal[1], vertex.normal[2]))
-            writer.write(struct.pack("ff", uv[0], uv[1]))
-
+            writer.write(struct.pack("fff", vertex.co[0], vertex.co[2], vertex.co[1]))
+            writer.write(struct.pack("fff", vertex.normal[0], vertex.normal[2], vertex.normal[1]))
+            writer.write(struct.pack("ff", uv[0], -uv[1]))
+        
+        # faces
         faces = bMesh.faces
         faces.sort(key = lambda face: face.material_index)
         
@@ -147,9 +155,9 @@ class Mafia4ds_Exporter:
                 if len(faceGroup) > 0:
                     faceGroups.append(faceGroup)
                     faceGroup = []
-                
+            
             faceGroup.append(face)
-                
+        
         if len(faceGroup) > 0:
             faceGroups.append(faceGroup)
         
@@ -160,10 +168,12 @@ class Mafia4ds_Exporter:
             lastMatIdx = 0
         
             for face in faceGroup:
-                lastMatIdx = face.material_index + 1
-                writer.write(struct.pack("HHH", face.verts[0].index, face.verts[1].index, face.verts[2].index))
-                
-            writer.write(struct.pack("H", lastMatIdx))
+                lastMatIdx = face.material_index
+                writer.write(struct.pack("HHH", face.verts[0].index, face.verts[2].index, face.verts[1].index))
+            
+            material = mesh.material_slots[lastMatIdx].material
+            materialIdx = data.materials.find(material.name)
+            writer.write(struct.pack("H", materialIdx + 1))
         
         del bMesh
     
@@ -175,18 +185,26 @@ class Mafia4ds_Exporter:
         self.WriteVisualLod(writer, mesh)
     
     
-    def WriteMesh(self, writer, mesh):
+    def WriteMesh(self, writer, mesh, meshes):
         meshProps = mesh.MeshProps
         writer.write(struct.pack("B", int(meshProps.Type, 0)))
         
         if meshProps.Type == "0x01":
             writer.write(struct.pack("B", int(meshProps.VisualType, 0)))
-            writer.write(struct.pack("H", 0x2a)) # render flags
+            writer.write(struct.pack("H", 0x2a00)) # render flags
         
-        writer.write(struct.pack("H", 0)) # parent idx
-        writer.write(struct.pack("fff", mesh.location[0], mesh.location[1], mesh.location[2]))
-        writer.write(struct.pack("fff", mesh.scale[0], mesh.scale[1], mesh.scale[2]))
-        writer.write(struct.pack("ffff", mesh.rotation_quaternion[0], mesh.rotation_quaternion[1], mesh.rotation_quaternion[2], mesh.rotation_quaternion[3]))
+        rotation = mesh.rotation_euler.to_quaternion()
+        
+        parentIdx = 0
+        parent    = mesh.parent
+        
+        if parent:
+            parentIdx = meshes.index(parent) + 1
+        
+        writer.write(struct.pack("H", parentIdx)) # parent idx
+        writer.write(struct.pack("fff", mesh.location[0], mesh.location[2], mesh.location[1]))
+        writer.write(struct.pack("fff", mesh.scale[0], mesh.scale[2], mesh.scale[1]))
+        writer.write(struct.pack("ffff", rotation[0], rotation[1], rotation[3], rotation[2]))
         writer.write(struct.pack("B", 0x09)) # culling flags
         self.WriteString(writer, mesh.name)
         self.WriteString(writer, meshProps.Parameters)
@@ -196,9 +214,9 @@ class Mafia4ds_Exporter:
     
     
     def WriteFile(self, writer):
-        writer.write("4DS\0".encode()); # fourcc
+        writer.write("4DS\0".encode());      # fourcc
         writer.write(struct.pack("H", 0x1d)) # mafia 4ds version
-        writer.write(struct.pack("BBBBBBBB", 0x00, 0x00, 0x81, 0x4A, 0x4A, 0xD2, 0xC2, 0x01)) # guid
+        writer.write(struct.pack("Q", 0))    # guid
         
         # write all materials
         materials = data.materials
@@ -208,29 +226,25 @@ class Mafia4ds_Exporter:
             self.WriteMaterial(writer, material)
         
         # write meshes
-        meshes    = context.scene.objects
-        meshCount = 0
+        allMeshes = context.scene.objects
+        meshes    = []
+        
+        for mesh in allMeshes:
+            if mesh.type == "MESH":
+                meshes.append(mesh)
+        
+        writer.write(struct.pack("H", len(meshes)))
         
         for mesh in meshes:
-            if mesh.type == "MESH":
-                meshCount += 1
-        
-        writer.write(struct.pack("H", meshCount))
-        
-        for mesh in meshes:
-            if mesh.type == "MESH":
-                self.WriteMesh(writer, mesh)
+             self.WriteMesh(writer, mesh, meshes)
         
         # allow 5ds animation
         writer.write(struct.pack("B", 0))
     
     
     def Export(self, filename):
-        writer = open(filename, "wb")
-        
-        self.WriteFile(writer)
-        
-        writer.close()
+        with open(filename, "wb") as writer:
+            self.WriteFile(writer)
         
         return {'FINISHED'}
 
