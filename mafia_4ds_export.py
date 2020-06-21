@@ -118,8 +118,12 @@ class Mafia4ds_Exporter:
     def WriteVisualLod(self, writer, mesh):
         writer.write(struct.pack("f", 0.0)) # lod ratio
         
-        bMesh = bmesh.new()
-        bMesh.from_mesh(mesh.data)
+        # apply modifiers
+        depsgraph = context.evaluated_depsgraph_get()
+        mesh      = mesh.evaluated_get(depsgraph)
+        
+        bMesh     = bmesh.new()
+        bMesh.from_mesh(mesh.to_mesh())
         
         bmesh.ops.triangulate(bMesh, faces = bMesh.faces[:], quad_method = "BEAUTY", ngon_method = "BEAUTY")
         
