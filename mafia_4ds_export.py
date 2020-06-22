@@ -230,7 +230,7 @@ class Mafia4ds_Exporter:
             self.WriteMaterial(writer, material)
         
         # write meshes
-        allMeshes = context.scene.objects
+        allMeshes = context.visible_objects
         meshes    = []
         
         for mesh in allMeshes:
