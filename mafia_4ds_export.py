@@ -44,7 +44,7 @@ class Mafia4ds_Exporter:
         return (diffuse, emission, alpha, metallic)
     
     
-    def WriteString(self, writer, string):
+    def SerializeString(self, writer, string):
         string = path.basename(string)
         
         writer.write(struct.pack("B", len(string)))
@@ -53,7 +53,7 @@ class Mafia4ds_Exporter:
             writer.write(struct.pack("b", c))
     
     
-    def WriteMaterial(self, writer, material):
+    def SerializeMaterial(self, writer, material):
         matProps = material.MaterialProps
         (diffuse, emission, alpha, metallic) = self.GetMaterialData(material)
         
@@ -97,14 +97,14 @@ class Mafia4ds_Exporter:
         # env mapping
         if matProps.UseEnvTexture:
             writer.write(struct.pack("f", metallic))
-            self.WriteString(writer, matProps.EnvTexture.upper())
+            self.SerializeString(writer, matProps.EnvTexture.upper())
         
         # diffuse mapping
-        self.WriteString(writer, diffuse.upper())
+        self.SerializeString(writer, diffuse.upper())
         
         # alpha mapping
         if matProps.AddEffect and matProps.UseAlphaTexture:
-            self.WriteString(writer, matProps.AlphaTexture.upper())
+            self.SerializeString(writer, matProps.AlphaTexture.upper())
         
         # animated texture
         if matProps.AnimatedDiffuse:
@@ -115,7 +115,7 @@ class Mafia4ds_Exporter:
             writer.write(struct.pack("I", 0))
     
     
-    def WriteVisualLod(self, writer, mesh):
+    def SerializeVisualLod(self, writer, mesh):
         writer.write(struct.pack("f", 0.0)) # lod ratio
         
         # apply modifiers
@@ -182,14 +182,14 @@ class Mafia4ds_Exporter:
         del bMesh
     
     
-    def WriteVisual(self, writer, mesh):
+    def SerializeVisual(self, writer, mesh):
         writer.write(struct.pack("H", 0)) # instance idx
         writer.write(struct.pack("B", 1)) # lod count
         
-        self.WriteVisualLod(writer, mesh)
+        self.SerializeVisualLod(writer, mesh)
     
     
-    def WriteMesh(self, writer, mesh, meshes):
+    def SerializeMesh(self, writer, mesh, meshes):
         meshProps = mesh.MeshProps
         writer.write(struct.pack("B", int(meshProps.Type, 0)))
         
@@ -210,14 +210,14 @@ class Mafia4ds_Exporter:
         writer.write(struct.pack("fff", mesh.scale[0], mesh.scale[2], mesh.scale[1]))
         writer.write(struct.pack("ffff", rotation[0], rotation[1], rotation[3], rotation[2]))
         writer.write(struct.pack("B", 0x09)) # culling flags
-        self.WriteString(writer, mesh.name)
-        self.WriteString(writer, meshProps.Parameters)
+        self.SerializeString(writer, mesh.name)
+        self.SerializeString(writer, meshProps.Parameters)
         
         if meshProps.Type == "0x01":
-            self.WriteVisual(writer, mesh)
+            self.SerializeVisual(writer, mesh)
     
     
-    def WriteFile(self, writer):
+    def SerializeFile(self, writer):
         writer.write("4DS\0".encode());      # fourcc
         writer.write(struct.pack("H", 0x1d)) # mafia 4ds version
         writer.write(struct.pack("Q", 0))    # guid
@@ -227,7 +227,7 @@ class Mafia4ds_Exporter:
         writer.write(struct.pack("H", len(materials)))
         
         for material in materials:
-            self.WriteMaterial(writer, material)
+            self.SerializeMaterial(writer, material)
         
         # write meshes
         allMeshes = context.visible_objects
@@ -240,7 +240,7 @@ class Mafia4ds_Exporter:
         writer.write(struct.pack("H", len(meshes)))
         
         for mesh in meshes:
-             self.WriteMesh(writer, mesh, meshes)
+             self.SerializeMesh(writer, mesh, meshes)
         
         # allow 5ds animation
         writer.write(struct.pack("B", 0))
@@ -248,7 +248,7 @@ class Mafia4ds_Exporter:
     
     def Export(self, filename):
         with open(filename, "wb") as writer:
-            self.WriteFile(writer)
+            self.SerializeFile(writer)
         
         return {'FINISHED'}
 
@@ -266,14 +266,14 @@ class Mafia4ds_ExportDialog(types.Operator, io_utils.ExportHelper):
         maxlen  = 255
     )
     
-    IncludeMeshes : props.EnumProperty(
-        name  = "Include Meshes",
-        items = [
-            ("0", "Selected Objects",  ""),
-            ("1", "Active Collection", "")
-        ],
-        default = "1"
-    )
+    #IncludeMeshes : props.EnumProperty(
+    #    name  = "Include Meshes",
+    #    items = [
+    #        ("0", "Selected Objects",  ""),
+    #        ("1", "Active Collection", "")
+    #    ],
+    #    default = "1"
+    #)
 
     def execute(self, context):
         exporter = Mafia4ds_Exporter(self)
