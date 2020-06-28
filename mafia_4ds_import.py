@@ -16,6 +16,29 @@ class Mafia4ds_Importer:
         self.Config = config
     
     
+    def SetMaterialData(self, material, diffuse, emission, alpha, metallic):
+        for node in material.node_tree.nodes:
+            if node.type != "BSDF_PRINCIPLED":
+                continue
+            
+            node.inputs["Emission" ].default_value = [ emission[0], emission[1], emission[2], 1.0]
+            node.inputs["Alpha"    ].default_value = alpha
+            node.inputs["Metallic" ].default_value = metallic
+            node.inputs["Specular" ].default_value = 0.0
+            node.inputs["Roughness"].default_value = 0.0
+            
+            links = node.inputs["Base Color"].links
+            if len(links) == 0:
+                break
+            
+            image = links[0].from_node.image
+            
+            if not image:
+                break
+            
+            image.name = diffuse
+    
+    
     def ShowError(self, message):
         print(message)
         
@@ -24,7 +47,7 @@ class Mafia4ds_Importer:
         ), title = "Error", icon = "ERROR")
     
     
-    def DeserializeString(self, reader, length):
+    def DeserializeStringFixed(self, reader, length):
         tuple  = struct.unpack("{}c".format(length), reader.read(length))
         string = ""
         
@@ -34,8 +57,76 @@ class Mafia4ds_Importer:
         return string
     
     
+    def DeserializeString(self, reader):
+        length = struct.unpack("B", reader.read(1))[0]
+        return self.DeserializeStringFixed(reader, length)
+    
+    
+    def DeserializeMaterial(self, reader):
+        material = data.materials[0].copy()
+        matProps = material.MaterialProps
+        
+        # material flags
+        matFlags = struct.unpack("I", reader.read(4))[0]
+        
+        matProps.UseDiffuseTex   = (matFlags & 0x00040000) != 0
+        
+        matProps.Coloring        = (matFlags & 0x08000000) != 0
+        matProps.MipMapping      = (matFlags & 0x00800000) != 0
+        matProps.TwoSided        = (matFlags & 0x10000000) != 0
+    
+        matProps.AddEffect       = (matFlags & 0x00008000) != 0
+        
+        matProps.ColorKey        = (matFlags & 0x20000000) != 0
+        matProps.AdditiveBlend   = (matFlags & 0x80000000) != 0
+        matProps.UseAlphaTexture = (matFlags & 0x40000000) != 0
+    
+        matProps.UseEnvTexture   = (matFlags & 0x00080000) != 0
+        matProps.EnvDefaultMode  = (matFlags & 0x00000100) != 0
+        matProps.EnvMultiplyMode = (matFlags & 0x00000200) != 0
+        matProps.EnvAdditiveMode = (matFlags & 0x00000400) != 0
+        matProps.EnvYAxisRefl    = (matFlags & 0x00001000) != 0
+        matProps.EnvYAxisProj    = (matFlags & 0x00002000) != 0
+        matProps.EnvZAxisProj    = (matFlags & 0x00004000) != 0
+    
+        matProps.AnimatedDiffuse = (matFlags & 0x04000000) != 0
+        matProps.AnimatedAlpha   = (matFlags & 0x02000000) != 0
+        
+        # colors
+        matProps.AmbientColor = struct.unpack("fff", reader.read(4 * 3))
+        matProps.DiffuseColor = struct.unpack("fff", reader.read(4 * 3))
+        emission              = struct.unpack("fff", reader.read(4 * 3))
+        
+        # alpha
+        alpha = struct.unpack("f", reader.read(4))[0]
+        
+        # env mapping
+        metallic = 0.0
+        
+        if matProps.UseEnvTexture:
+            metallic            = struct.unpack("f", reader.read(4))[0]
+            matProps.EnvTexture = self.DeserializeString(reader).lower()
+        
+        # diffuse mapping
+        diffuse = self.DeserializeString(reader).lower()
+        material.name = diffuse
+        
+        # alpha mapping
+        if matProps.AddEffect and matProps.UseAlphaTexture:
+            matProps.AlphaTexture = self.DeserializeString(reader).lower()
+        
+        # animated texture
+        if matProps.AnimatedDiffuse:
+            matProps.AnimatedFrames  = struct.unpack("I", reader.read(4))[0]
+            reader.read(2)
+            matProps.AnimFrameLength = struct.unpack("I", reader.read(4))[0]
+            reader.read(8)
+        
+        self.SetMaterialData(material, diffuse, emission, alpha, metallic)
+    
+    
     def DeserializeFile(self, reader):
-        fourcc = self.DeserializeString(reader, 4)
+        fourcc = self.DeserializeStringFixed(reader, 4)
         if fourcc != "4DS\0":
             self.ShowError("Not a 4DS file!")
             return
@@ -49,6 +140,9 @@ class Mafia4ds_Importer:
         
         # read all materials
         materialCount = struct.unpack("H", reader.read(2))[0]
+        
+        for idx in range(materialCount):
+            self.DeserializeMaterial(reader)
     
     
     def Import(self, filename):
@@ -70,15 +164,6 @@ class Mafia4ds_ImportDialog(types.Operator, io_utils.ImportHelper):
         options = {'HIDDEN'},
         maxlen  = 255
     )
-    
-    #IncludeMeshes : props.EnumProperty(
-    #    name  = "Include Meshes",
-    #    items = [
-    #        ("0", "Selected Objects",  ""),
-    #        ("1", "Active Collection", "")
-    #    ],
-    #    default = "1"
-    #)
 
     def execute(self, context):
         exporter = Mafia4ds_Importer(self)
