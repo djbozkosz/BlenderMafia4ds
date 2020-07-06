@@ -17,6 +17,8 @@ class Mafia4ds_Importer:
     
     
     def SetMaterialData(self, material, diffuse, emission, alpha, metallic):
+        material.use_nodes = True
+        
         for node in material.node_tree.nodes:
             if node.type != "BSDF_PRINCIPLED":
                 continue
@@ -28,6 +30,7 @@ class Mafia4ds_Importer:
             node.inputs["Roughness"].default_value = 0.0
             
             links = node.inputs["Base Color"].links
+            
             if len(links) == 0:
                 break
             
@@ -63,7 +66,7 @@ class Mafia4ds_Importer:
     
     
     def DeserializeMaterial(self, reader):
-        material = data.materials[0].copy()
+        material = data.materials.new("material")
         matProps = material.MaterialProps
         
         # material flags
