@@ -140,6 +140,105 @@ class Mafia4ds_Importer:
         self.SetMaterialData(material, diffuse, emission, alpha, metallic)
     
     
+    def DeserializeVisualLod(self, reader, mesh, lodIdx):
+        if lodIdx > 0:
+            self.ShowError("todo lod!")
+            # new mesh, reparent
+        
+        lodRatio          = struct.unpack("f", reader.read(4))[0]
+        bMesh             = bmesh.new()
+        
+        # vertices
+        vertices          = bMesh.verts
+        vertexCount       = struct.unpack("H", reader.read(2))[0]
+        
+        for vertexIdx in range(vertexCount):
+            position      = struct.unpack("fff", reader.read(4 * 3))
+            normal        = struct.unpack("fff", reader.read(4 * 3))
+            uv            = struct.unpack("ff",  reader.read(4 * 2))
+            
+            vertex        = vertices.new()
+            vertex.co     = [ position[0], position[2], position[1] ]
+            vertex.normal = [ normal[0],   normal[2],   normal[1] ]
+        
+        # faces
+        faces             = bMesh.faces
+        faceGroupCount    = struct.unpack("B", reader.read(1))[0]
+        
+        for faceGroupIdx in range(faceGroupCount):
+            faceCount     = struct.unpack("H", reader.read(2))[0]
+            
+            for faceIdx in range(faceCount):
+                faceIdxs  = struct.unpack("HHH", reader.read(2 * 3))
+                face      = faces.new(vertices[faceIdxs[0]], vertices[faceIdxs[2]], vertices[faceIdxs[1]])
+                
+            materialIdx   = struct.unpack("H", reader.read(2))[0]
+
+        
+        bMesh.to_mesh(mesh)
+        del bMesh
+    
+    
+    def DeserializeVisual(self, reader, mesh):
+        instanceIdx = struct.unpack("H", reader.read(2))[0]
+        if instanceIdx > 0:
+            return;
+        
+        lodCount = struct.unpack("B", reader.read(1))[0]
+        
+        for lodIdx in range(lodCount):
+            self.DeserializeVisualLod(writer, mesh, lodIdx)
+    
+    
+    def DeserializeMesh(self, reader, meshes):
+        type = struct.unpack("B", reader.read(1))[0]
+        if type != 0x01: # temporary
+            self.ShowError("Unsupported mesh type {}!".format(type))
+            return False
+        
+        visualType = 0
+        
+        if type == 0x01:
+            visualType  = struct.unpack("B", reader.read(1))[0]
+            renderFlags = struct.unpack("H", reader.read(2))[0]
+        
+        if visualType != 0x00: # temporary
+            self.ShowError("Unsupported visual type {}!".format(visualType))
+            return False
+        
+        parentIdx            = struct.unpack("H", reader.read(2))[0]
+        location             = struct.unpack("fff", reader.read(4 * 3))
+        scale                = struct.unpack("fff", reader.read(4 * 3))
+        rotation             = struct.unpack("ffff", reader.read(4 * 4))
+        
+        cullingFlags         = struct.unpack("B", reader.read(1))[0]
+        name                 = self.DeserializeString(reader)
+        parameters           = self.DeserializeString(reader)
+        
+        mesh                 = data.meshes.new(name)
+        meshObj              = data.objects.new(name, mesh)
+        
+        context.collection.objects.link(meshObj)
+        meshes.append(mesh)
+        
+        meshProps            = mesh.MeshProps
+        meshProps.Type       = type
+        meshProps.VisualType = visualType
+        meshProps.Parameters = parameters
+        
+        if parentIdx > 0:
+            mesh.parent = meshes[parentIdx - 1]
+        
+        mesh.location        = [ location[0], location[2], location[1] ]
+        mesh.scale           = [ scale[0],    scale[2],    scale[1] ]
+        mesh.rotation        = [ rotation[0], rotation[1], rotation[3], rotation[2] ]
+        
+        if type == 0x01:
+            self.DeserializeVisual(reader, mesh)
+        
+        return True
+    
+    
     def DeserializeFile(self, reader):
         fourcc = self.DeserializeStringFixed(reader, 4)
         if fourcc != "4DS\0":
@@ -158,6 +257,15 @@ class Mafia4ds_Importer:
         
         for idx in range(materialCount):
             self.DeserializeMaterial(reader)
+        
+        # read all meshes
+        meshCount = struct.unpack("H", reader.read(2))[0]
+        meshes    = []
+        
+        for idx in range(meshCount):
+             result = self.DeserializeMesh(reader, meshes)
+             if result == False:
+                 break
     
     
     def Import(self, filename):
