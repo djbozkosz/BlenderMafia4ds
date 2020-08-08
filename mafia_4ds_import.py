@@ -19,27 +19,39 @@ class Mafia4ds_Importer:
     def SetMaterialData(self, material, diffuse, emission, alpha, metallic):
         material.use_nodes = True
         
-        for node in material.node_tree.nodes:
-            if node.type != "BSDF_PRINCIPLED":
-                continue
-            
-            node.inputs["Emission" ].default_value = [ emission[0], emission[1], emission[2], 1.0]
-            node.inputs["Alpha"    ].default_value = alpha
-            node.inputs["Metallic" ].default_value = metallic
-            node.inputs["Specular" ].default_value = 0.0
-            node.inputs["Roughness"].default_value = 0.0
-            
-            links = node.inputs["Base Color"].links
-            
-            if len(links) == 0:
+        node  = None
+        nodes = material.node_tree.nodes
+        
+        for node in nodes:
+            if node.type == "BSDF_PRINCIPLED":
                 break
+        
+        if node is None:
+            return
             
-            image = links[0].from_node.image
+        node.inputs["Emission" ].default_value = [ emission[0], emission[1], emission[2], 1.0]
+        node.inputs["Alpha"    ].default_value = alpha
+        node.inputs["Metallic" ].default_value = metallic
+        node.inputs["Specular" ].default_value = 0.0
+        node.inputs["Roughness"].default_value = 0.0
             
-            if not image:
-                break
+        baseColor      = node.inputs["Base Color"]
+        baseColorLinks = baseColor.links
             
-            image.name = diffuse
+        if len(baseColorLinks) > 0:
+            image      = baseColorLinks[0].from_node.image
+        else:
+            image      = nodes.new(type="ShaderNodeTexImage")
+            imageColor = image.outputs["Color"]
+            
+            links      = material.node_tree.links
+            links.new(imageColor, baseColor)
+        
+        if len(diffuse) == 0:
+            return
+            
+        file        = data.images.load(filepath = "C:/Hry/Mafia/maps/{}".format(diffuse), check_existing = True)
+        image.image = file
     
     
     def ShowError(self, message):
