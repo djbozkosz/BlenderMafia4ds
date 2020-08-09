@@ -138,7 +138,7 @@ class Mafia4ds_Exporter:
             
             for loop in vertex.link_loops:
                 loopUV = loop[uvLayerIdx].uv
-                uv = (loopUV[0], loopUV[1])
+                uv     = (loopUV[0], loopUV[1])
                 break
             
             writer.write(struct.pack("fff", vertex.co[0], vertex.co[2], vertex.co[1]))
@@ -175,8 +175,12 @@ class Mafia4ds_Exporter:
                 lastMatIdx = face.material_index
                 writer.write(struct.pack("HHH", face.verts[0].index, face.verts[2].index, face.verts[1].index))
             
-            material = mesh.material_slots[lastMatIdx].material
-            materialIdx = data.materials.find(material.name)
+            materialIdx = -1
+            
+            if len(mesh.material_slots) > 0:
+                material    = mesh.material_slots[lastMatIdx].material
+                materialIdx = data.materials.find(material.name)
+            
             writer.write(struct.pack("H", materialIdx + 1))
         
         del bMesh
@@ -197,17 +201,19 @@ class Mafia4ds_Exporter:
             writer.write(struct.pack("B", int(meshProps.VisualType, 0)))
             writer.write(struct.pack("H", 0x2a00)) # render flags
         
-        rotation = mesh.rotation_euler.to_quaternion()
-        
         parentIdx = 0
         parent    = mesh.parent
         
         if parent:
             parentIdx = meshes.index(parent) + 1
         
-        writer.write(struct.pack("H", parentIdx)) # parent idx
-        writer.write(struct.pack("fff", mesh.location[0], mesh.location[2], mesh.location[1]))
-        writer.write(struct.pack("fff", mesh.scale[0], mesh.scale[2], mesh.scale[1]))
+        location = mesh.location
+        scale    = mesh.scale
+        rotation = mesh.rotation_euler.to_quaternion()
+        
+        writer.write(struct.pack("H",    parentIdx)) # parent idx
+        writer.write(struct.pack("fff",  location[0], location[2], location[1]))
+        writer.write(struct.pack("fff",  scale[0],    scale[2],    scale[1]))
         writer.write(struct.pack("ffff", rotation[0], rotation[1], rotation[3], rotation[2]))
         writer.write(struct.pack("B", 0x09)) # culling flags
         self.SerializeString(writer, mesh.name)
@@ -229,7 +235,7 @@ class Mafia4ds_Exporter:
         for material in materials:
             self.SerializeMaterial(writer, material)
         
-        # write meshes
+        # write all meshes
         allMeshes = context.visible_objects
         meshes    = []
         
