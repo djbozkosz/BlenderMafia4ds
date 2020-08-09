@@ -138,9 +138,11 @@ class Mafia4ds_Importer:
             reader.read(8)
         
         self.SetMaterialData(material, diffuse, emission, alpha, metallic)
+        
+        return material
     
     
-    def DeserializeVisualLod(self, reader, mesh, lodIdx):
+    def DeserializeVisualLod(self, reader, materials, mesh, meshData, lodIdx):
         if lodIdx > 0:
             self.ShowError("todo lod!")
             # new mesh, reparent
@@ -150,6 +152,7 @@ class Mafia4ds_Importer:
         
         # vertices
         vertices          = bMesh.verts
+        uvs               = []
         vertexCount       = struct.unpack("H", reader.read(2))[0]
         
         for vertexIdx in range(vertexCount):
@@ -160,26 +163,41 @@ class Mafia4ds_Importer:
             vertex        = vertices.new()
             vertex.co     = [ position[0], position[2], position[1] ]
             vertex.normal = [ normal[0],   normal[2],   normal[1] ]
+            uvs.append([ uv[0], -uv[1] ])
+        
+        vertices.ensure_lookup_table()
         
         # faces
-        faces             = bMesh.faces
-        faceGroupCount    = struct.unpack("B", reader.read(1))[0]
+        faces               = bMesh.faces
+        uvLayer             = bMesh.loops.layers.uv.new()
+        faceGroupCount      = struct.unpack("B", reader.read(1))[0]
         
         for faceGroupIdx in range(faceGroupCount):
-            faceCount     = struct.unpack("H", reader.read(2))[0]
+            faceCount       = struct.unpack("H", reader.read(2))[0]
+            
+            ops.object.material_slot_add({ "object" : mesh })
+            materialSlotIdx = len(mesh.material_slots) - 1
+            materialSlot    = mesh.material_slots[materialSlotIdx]
             
             for faceIdx in range(faceCount):
-                faceIdxs  = struct.unpack("HHH", reader.read(2 * 3))
-                face      = faces.new(vertices[faceIdxs[0]], vertices[faceIdxs[2]], vertices[faceIdxs[1]])
+                vertexIdxs             = struct.unpack("HHH", reader.read(2 * 3))
+                vertexIdxsSwap         = [ vertexIdxs[0], vertexIdxs[2], vertexIdxs[1] ]
+                face                   = faces.new([ vertices[vertexIdxsSwap[0]], vertices[vertexIdxsSwap[1]], vertices[vertexIdxsSwap[2]] ])
+                face.material_index    = materialSlotIdx
                 
-            materialIdx   = struct.unpack("H", reader.read(2))[0]
-
+                for loop, vertexIdx in zip(face.loops, vertexIdxsSwap):
+                    loop[uvLayer].uv   = uvs[vertexIdx]
+            
+            materialIdx                = struct.unpack("H", reader.read(2))[0]
+            
+            if materialIdx > 0:
+                materialSlot.material = materials[materialIdx - 1]
         
-        bMesh.to_mesh(mesh)
+        bMesh.to_mesh(meshData)
         del bMesh
     
     
-    def DeserializeVisual(self, reader, mesh):
+    def DeserializeVisual(self, reader, materials, mesh, meshData):
         instanceIdx = struct.unpack("H", reader.read(2))[0]
         if instanceIdx > 0:
             return;
@@ -187,10 +205,10 @@ class Mafia4ds_Importer:
         lodCount = struct.unpack("B", reader.read(1))[0]
         
         for lodIdx in range(lodCount):
-            self.DeserializeVisualLod(writer, mesh, lodIdx)
+            self.DeserializeVisualLod(reader, materials, mesh, meshData, lodIdx)
     
     
-    def DeserializeMesh(self, reader, meshes):
+    def DeserializeMesh(self, reader, materials, meshes):
         type = struct.unpack("B", reader.read(1))[0]
         if type != 0x01: # temporary
             self.ShowError("Unsupported mesh type {}!".format(type))
@@ -215,26 +233,26 @@ class Mafia4ds_Importer:
         name                 = self.DeserializeString(reader)
         parameters           = self.DeserializeString(reader)
         
-        mesh                 = data.meshes.new(name)
-        meshObj              = data.objects.new(name, mesh)
+        meshData             = data.meshes.new(name)
+        mesh                 = data.objects.new(name, meshData)
         
-        context.collection.objects.link(meshObj)
+        context.collection.objects.link(mesh)
         meshes.append(mesh)
         
         meshProps            = mesh.MeshProps
-        meshProps.Type       = type
-        meshProps.VisualType = visualType
+        meshProps.Type       = "0x{:02x}".format(type)
+        meshProps.VisualType = "0x{:02x}".format(visualType)
         meshProps.Parameters = parameters
         
         if parentIdx > 0:
             mesh.parent = meshes[parentIdx - 1]
         
-        mesh.location        = [ location[0], location[2], location[1] ]
-        mesh.scale           = [ scale[0],    scale[2],    scale[1] ]
-        mesh.rotation        = [ rotation[0], rotation[1], rotation[3], rotation[2] ]
+        mesh.location            = [ location[0], location[2], location[1] ]
+        mesh.scale               = [ scale[0],    scale[2],    scale[1] ]
+        mesh.rotation_quaternion = [ rotation[0], rotation[1], rotation[3], rotation[2] ]
         
         if type == 0x01:
-            self.DeserializeVisual(reader, mesh)
+            self.DeserializeVisual(reader, materials, mesh, meshData)
         
         return True
     
@@ -254,16 +272,18 @@ class Mafia4ds_Importer:
         
         # read all materials
         materialCount = struct.unpack("H", reader.read(2))[0]
+        materials     = []
         
         for idx in range(materialCount):
-            self.DeserializeMaterial(reader)
+            material = self.DeserializeMaterial(reader)
+            materials.append(material)
         
         # read all meshes
         meshCount = struct.unpack("H", reader.read(2))[0]
         meshes    = []
         
         for idx in range(meshCount):
-             result = self.DeserializeMesh(reader, meshes)
+             result = self.DeserializeMesh(reader, materials, meshes)
              if result == False:
                  break
     
