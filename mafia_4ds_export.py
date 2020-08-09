@@ -131,13 +131,13 @@ class Mafia4ds_Exporter:
         vertices = bMesh.verts
         writer.write(struct.pack("H", len(vertices)))
         
-        uvLayerIdx = bMesh.loops.layers.uv.active
+        uvLayer = bMesh.loops.layers.uv.active
         
         for vertex in vertices:
             uv = (0.0, 0.0)
             
             for loop in vertex.link_loops:
-                loopUV = loop[uvLayerIdx].uv
+                loopUV = loop[uvLayer].uv
                 uv     = (loopUV[0], loopUV[1])
                 break
             
