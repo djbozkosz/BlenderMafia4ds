@@ -28,7 +28,10 @@ class Mafia4ds_GlobalMeshProperties(types.PropertyGroup):
         ]
     )
     
-    Parameters : props.StringProperty(name = "Parameters")
+    Parameters   : props.StringProperty(name = "Parameters")
+    RenderFlags  : props.IntProperty   (name = "RenderFlags", default = 0x2a00)
+    CullingFlags : props.IntProperty   (name = "CullingFlags", default = 0x09)
+    InstanceIdx  : props.IntProperty   (name = "InstanceIdx", default = 0)
 
 
 class Mafia4ds_MeshPropertiesPanel(types.Panel):
@@ -47,6 +50,9 @@ class Mafia4ds_MeshPropertiesPanel(types.Panel):
         layout.prop(meshProps, "Type")
         layout.prop(meshProps, "VisualType")
         layout.prop(meshProps, "Parameters")
+        layout.prop(meshProps, "RenderFlags")
+        layout.prop(meshProps, "CullingFlags")
+        layout.prop(meshProps, "InstanceIdx")
 
 
 def register():

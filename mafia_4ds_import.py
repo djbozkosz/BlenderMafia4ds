@@ -1,5 +1,6 @@
 import bmesh
 import struct
+import mathutils
 
 from bpy        import context
 from bpy        import data
@@ -197,8 +198,10 @@ class Mafia4ds_Importer:
         del bMesh
     
     
-    def DeserializeVisual(self, reader, materials, mesh, meshData):
-        instanceIdx = struct.unpack("H", reader.read(2))[0]
+    def DeserializeVisual(self, reader, materials, mesh, meshData, meshProps):
+        instanceIdx           = struct.unpack("H", reader.read(2))[0]
+        meshProps.InstanceIdx = instanceIdx
+        
         if instanceIdx > 0:
             return;
         
@@ -239,20 +242,22 @@ class Mafia4ds_Importer:
         context.collection.objects.link(mesh)
         meshes.append(mesh)
         
-        meshProps            = mesh.MeshProps
-        meshProps.Type       = "0x{:02x}".format(type)
-        meshProps.VisualType = "0x{:02x}".format(visualType)
-        meshProps.Parameters = parameters
+        meshProps              = mesh.MeshProps
+        meshProps.Type         = "0x{:02x}".format(type)
+        meshProps.VisualType   = "0x{:02x}".format(visualType)
+        meshProps.Parameters   = parameters
+        meshProps.RenderFlags  = renderFlags
+        meshProps.CullingFlags = cullingFlags
         
         if parentIdx > 0:
             mesh.parent = meshes[parentIdx - 1]
         
-        mesh.location            = [ location[0], location[2], location[1] ]
-        mesh.scale               = [ scale[0],    scale[2],    scale[1] ]
-        mesh.rotation_quaternion = [ rotation[0], rotation[1], rotation[3], rotation[2] ]
+        mesh.location       = [ location[0], location[2], location[1] ]
+        mesh.scale          = [ scale[0],    scale[2],    scale[1] ]
+        mesh.rotation_euler = mathutils.Quaternion([ rotation[0], rotation[1], rotation[3], rotation[2] ]).to_euler()
         
         if type == 0x01:
-            self.DeserializeVisual(reader, materials, mesh, meshData)
+            self.DeserializeVisual(reader, materials, mesh, meshData, meshProps)
         
         return True
     
@@ -269,6 +274,9 @@ class Mafia4ds_Importer:
             return
         
         guid = struct.unpack("Q", reader.read(8))[0]
+        
+        scene      = types.Scene
+        scene.guid = guid
         
         # read all materials
         materialCount = struct.unpack("H", reader.read(2))[0]

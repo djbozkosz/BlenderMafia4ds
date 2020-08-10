@@ -22,7 +22,12 @@ class Mafia4ds_Exporter:
         alpha    = 1.0
         metallic = 0.0
         
-        for node in material.node_tree.nodes:
+        tree = material.node_tree
+        
+        if not tree:
+            return (diffuse, emission, alpha, metallic)
+        
+        for node in tree.nodes:
             if node.type != "BSDF_PRINCIPLED":
                 continue
             
@@ -178,16 +183,18 @@ class Mafia4ds_Exporter:
             materialIdx = -1
             
             if len(mesh.material_slots) > 0:
-                material    = mesh.material_slots[lastMatIdx].material
-                materialIdx = data.materials.find(material.name)
+                material = mesh.material_slots[lastMatIdx].material
+                
+                if material:
+                    materialIdx = data.materials.find(material.name)
             
             writer.write(struct.pack("H", materialIdx + 1))
         
         del bMesh
     
     
-    def SerializeVisual(self, writer, mesh):
-        writer.write(struct.pack("H", 0)) # instance idx
+    def SerializeVisual(self, writer, mesh, meshProps):
+        writer.write(struct.pack("H", meshProps.InstanceIdx)) # instance idx
         writer.write(struct.pack("B", 1)) # lod count
         
         self.SerializeVisualLod(writer, mesh)
@@ -199,7 +206,7 @@ class Mafia4ds_Exporter:
         
         if meshProps.Type == "0x01":
             writer.write(struct.pack("B", int(meshProps.VisualType, 0)))
-            writer.write(struct.pack("H", 0x2a00)) # render flags
+            writer.write(struct.pack("H", meshProps.RenderFlags)) # render flags
         
         parentIdx = 0
         parent    = mesh.parent
@@ -215,18 +222,22 @@ class Mafia4ds_Exporter:
         writer.write(struct.pack("fff",  location[0], location[2], location[1]))
         writer.write(struct.pack("fff",  scale[0],    scale[2],    scale[1]))
         writer.write(struct.pack("ffff", rotation[0], rotation[1], rotation[3], rotation[2]))
-        writer.write(struct.pack("B", 0x09)) # culling flags
+        writer.write(struct.pack("B", meshProps.CullingFlags)) # culling flags
         self.SerializeString(writer, mesh.name)
         self.SerializeString(writer, meshProps.Parameters)
         
         if meshProps.Type == "0x01":
-            self.SerializeVisual(writer, mesh)
+            self.SerializeVisual(writer, mesh, meshProps)
     
     
     def SerializeFile(self, writer):
         writer.write("4DS\0".encode());      # fourcc
         writer.write(struct.pack("H", 0x1d)) # mafia 4ds version
-        writer.write(struct.pack("Q", 0))    # guid
+        
+        scene = types.Scene
+        guid  = getattr(scene, "guid", 0)
+        
+        writer.write(struct.pack("Q", guid)) # guid
         
         # write all materials
         materials = data.materials
