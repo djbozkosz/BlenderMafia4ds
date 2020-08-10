@@ -143,27 +143,23 @@ class Mafia4ds_Importer:
         return material
     
     
-    def DeserializeVisualLod(self, reader, materials, mesh, meshData, lodIdx):
-        if lodIdx > 0:
-            self.ShowError("todo lod!")
-            # new mesh, reparent
-        
-        lodRatio          = struct.unpack("f", reader.read(4))[0]
-        bMesh             = bmesh.new()
+    def DeserializeVisualLod(self, reader, materials, mesh, meshData, meshProps):
+        meshProps.lodRatio = struct.unpack("f", reader.read(4))[0]
+        bMesh              = bmesh.new()
         
         # vertices
-        vertices          = bMesh.verts
-        uvs               = []
-        vertexCount       = struct.unpack("H", reader.read(2))[0]
+        vertices           = bMesh.verts
+        uvs                = []
+        vertexCount        = struct.unpack("H", reader.read(2))[0]
         
         for vertexIdx in range(vertexCount):
-            position      = struct.unpack("fff", reader.read(4 * 3))
-            normal        = struct.unpack("fff", reader.read(4 * 3))
-            uv            = struct.unpack("ff",  reader.read(4 * 2))
+            position       = struct.unpack("fff", reader.read(4 * 3))
+            normal         = struct.unpack("fff", reader.read(4 * 3))
+            uv             = struct.unpack("ff",  reader.read(4 * 2))
             
-            vertex        = vertices.new()
-            vertex.co     = [ position[0], position[2], position[1] ]
-            vertex.normal = [ normal[0],   normal[2],   normal[1] ]
+            vertex         = vertices.new()
+            vertex.co      = [ position[0], position[2], position[1] ]
+            vertex.normal  = [ normal[0],   normal[2],   normal[1] ]
             uvs.append([ uv[0], -uv[1] ])
         
         vertices.ensure_lookup_table()
@@ -208,7 +204,20 @@ class Mafia4ds_Importer:
         lodCount = struct.unpack("B", reader.read(1))[0]
         
         for lodIdx in range(lodCount):
-            self.DeserializeVisualLod(reader, materials, mesh, meshData, lodIdx)
+            if lodIdx > 0:
+                name           = "{}_lod{}".format(mesh.name, lodIdx)
+                meshData       = data.meshes.new(name)
+                newMesh        = data.objects.new(name, meshData)
+                newMesh.parent = mesh
+                mesh           = newMesh
+                
+                context.collection.objects.link(mesh)
+            
+            self.DeserializeVisualLod(reader, materials, mesh, meshData, meshProps)
+            
+            # commented out, as i was not able to enable them in editor
+            #if lodIdx > 0:
+            #    mesh.hide_viewport = True
     
     
     def DeserializeMesh(self, reader, materials, meshes):

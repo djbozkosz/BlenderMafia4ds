@@ -120,8 +120,8 @@ class Mafia4ds_Exporter:
             writer.write(struct.pack("I", 0))
     
     
-    def SerializeVisualLod(self, writer, mesh):
-        writer.write(struct.pack("f", 0.0)) # lod ratio
+    def SerializeVisualLod(self, writer, mesh, meshProps):
+        writer.write(struct.pack("f", meshProps.LodRatio)) # lod ratio
         
         # apply modifiers
         depsgraph = context.evaluated_depsgraph_get()
@@ -197,7 +197,7 @@ class Mafia4ds_Exporter:
         writer.write(struct.pack("H", meshProps.InstanceIdx)) # instance idx
         writer.write(struct.pack("B", 1)) # lod count
         
-        self.SerializeVisualLod(writer, mesh)
+        self.SerializeVisualLod(writer, mesh, meshProps)
     
     
     def SerializeMesh(self, writer, mesh, meshes):
