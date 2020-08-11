@@ -195,6 +195,11 @@ class Mafia4ds_Exporter:
     
     def SerializeVisual(self, writer, mesh, meshProps):
         writer.write(struct.pack("H", meshProps.InstanceIdx)) # instance idx
+        
+        # find lods in meshes list - starts with "mesh_name_lod"
+        # put in separe list and remove from original
+        # write lod0 and in foreach rest of lods
+        
         writer.write(struct.pack("B", 1)) # lod count
         
         self.SerializeVisualLod(writer, mesh, meshProps)
