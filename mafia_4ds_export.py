@@ -49,6 +49,10 @@ class Mafia4ds_Exporter:
         return (diffuse, emission, alpha, metallic)
     
     
+    def IsLod(self, mesh):
+        return mesh.name.find("_lod") != -1
+    
+    
     def SerializeString(self, writer, string):
         string = path.basename(string)
         
@@ -193,16 +197,33 @@ class Mafia4ds_Exporter:
         del bMesh
     
     
-    def SerializeVisual(self, writer, mesh, meshProps):
+    def SerializeVisual(self, writer, mesh, meshProps, meshes):
         writer.write(struct.pack("H", meshProps.InstanceIdx)) # instance idx
+        
+        lods    = []
+        lodName = "{}_lod".format(mesh.name)
+        
+        for lod in meshes:
+            if lod == mesh:
+                continue
+            
+            if lod.name.startswith(lodName) == False:
+                continue
+            
+            lods.append(lod)
+        
+        lods.sort(key = lambda mesh: mesh.name)
         
         # find lods in meshes list - starts with "mesh_name_lod"
         # put in separe list and remove from original
         # write lod0 and in foreach rest of lods
         
-        writer.write(struct.pack("B", 1)) # lod count
+        writer.write(struct.pack("B", len(lods) + 1)) # lod count
         
         self.SerializeVisualLod(writer, mesh, meshProps)
+        
+        for lod in lods:
+            self.SerializeVisualLod(writer, lod, lod.MeshProps)
     
     
     def SerializeMesh(self, writer, mesh, meshes):
@@ -232,7 +253,7 @@ class Mafia4ds_Exporter:
         self.SerializeString(writer, meshProps.Parameters)
         
         if meshProps.Type == "0x01":
-            self.SerializeVisual(writer, mesh, meshProps)
+            self.SerializeVisual(writer, mesh, meshProps, meshes)
     
     
     def SerializeFile(self, writer):
@@ -240,8 +261,8 @@ class Mafia4ds_Exporter:
         writer.write(struct.pack("H", 0x1d)) # mafia 4ds version
         
         scene = types.Scene
-        guid  = getattr(scene, "guid", 0)
         
+        guid  = getattr(scene, "guid", 0)
         writer.write(struct.pack("Q", guid)) # guid
         
         # write all materials
@@ -254,18 +275,24 @@ class Mafia4ds_Exporter:
         # write all meshes
         allMeshes = context.visible_objects
         meshes    = []
+        meshCount = 0
         
         for mesh in allMeshes:
             if mesh.type == "MESH":
                 meshes.append(mesh)
+                
+                if self.IsLod(mesh) == False:
+                    meshCount += 1
         
-        writer.write(struct.pack("H", len(meshes)))
+        writer.write(struct.pack("H", meshCount))
         
         for mesh in meshes:
-             self.SerializeMesh(writer, mesh, meshes)
+            if self.IsLod(mesh) == False:
+                self.SerializeMesh(writer, mesh, meshes)
         
         # allow 5ds animation
-        writer.write(struct.pack("B", 0))
+        isAnimated = getattr(scene, "isAnimated", 0)
+        writer.write(struct.pack("B", isAnimated))
     
     
     def Export(self, filename):

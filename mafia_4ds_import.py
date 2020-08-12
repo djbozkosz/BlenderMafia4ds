@@ -282,9 +282,9 @@ class Mafia4ds_Importer:
             self.ShowError("Invalid 4DS version {}!".format(version))
             return
         
-        guid = struct.unpack("Q", reader.read(8))[0]
-        
         scene      = types.Scene
+        
+        guid       = struct.unpack("Q", reader.read(8))[0]
         scene.guid = guid
         
         # read all materials
@@ -303,6 +303,10 @@ class Mafia4ds_Importer:
              result = self.DeserializeMesh(reader, materials, meshes)
              if result == False:
                  break
+        
+        # allow 5ds animation
+        isAnimated       = struct.unpack("B", reader.read(1))[0]
+        scene.isAnimated = isAnimated
     
     
     def Import(self, filename):
