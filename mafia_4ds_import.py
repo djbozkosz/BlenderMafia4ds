@@ -190,6 +190,8 @@ class Mafia4ds_Importer:
             if materialIdx > 0:
                 materialSlot.material = materials[materialIdx - 1]
         
+        ops.object.shade_smooth()
+        
         bMesh.to_mesh(meshData)
         del bMesh
     
@@ -220,21 +222,81 @@ class Mafia4ds_Importer:
             #    mesh.hide_viewport = True
     
     
-    def DeserializeMesh(self, reader, materials, meshes):
-        type = struct.unpack("B", reader.read(1))[0]
-        if type != 0x01: # temporary
-            self.ShowError("Unsupported mesh type {}!".format(type))
-            return False
+    def DeserializeDummy(self, reader, meshData):
+        aabbMin  = struct.unpack("fff", reader.read(4 * 3))
+        aabbMax  = struct.unpack("fff", reader.read(4 * 3))
         
-        visualType = 0
+        vertexData = [
+            [ aabbMin[0], aabbMax[2], aabbMin[1],  0,  1,  0 ],
+            [ aabbMax[0], aabbMax[2], aabbMin[1],  0,  1,  0 ],
+            [ aabbMin[0], aabbMax[2], aabbMax[1],  0,  1,  0 ],
+            [ aabbMax[0], aabbMax[2], aabbMax[1],  0,  1,  0 ],
+            [ aabbMax[0], aabbMin[2], aabbMin[1],  0, -1,  0 ],
+            [ aabbMin[0], aabbMin[2], aabbMin[1],  0, -1,  0 ],
+            [ aabbMax[0], aabbMin[2], aabbMax[1],  0, -1,  0 ],
+            [ aabbMin[0], aabbMin[2], aabbMax[1],  0, -1,  0 ],
+            [ aabbMin[0], aabbMax[2], aabbMax[1],  0,  0,  1 ],
+            [ aabbMax[0], aabbMax[2], aabbMax[1],  0,  0,  1 ],
+            [ aabbMin[0], aabbMin[2], aabbMax[1],  0,  0,  1 ],
+            [ aabbMax[0], aabbMin[2], aabbMax[1],  0,  0,  1 ],
+            [ aabbMax[0], aabbMax[2], aabbMax[1],  1,  0,  0 ],
+            [ aabbMax[0], aabbMax[2], aabbMin[1],  1,  0,  0 ],
+            [ aabbMax[0], aabbMin[2], aabbMax[1],  1,  0,  0 ],
+            [ aabbMax[0], aabbMin[2], aabbMin[1],  1,  0,  0 ],
+            [ aabbMax[0], aabbMax[2], aabbMin[1],  0,  0, -1 ],
+            [ aabbMin[0], aabbMax[2], aabbMin[1],  0,  0, -1 ],
+            [ aabbMax[0], aabbMin[2], aabbMin[1],  0,  0, -1 ],
+            [ aabbMin[0], aabbMin[2], aabbMin[1],  0,  0, -1 ],
+            [ aabbMin[0], aabbMax[2], aabbMin[1], -1,  0,  0 ],
+            [ aabbMin[0], aabbMax[2], aabbMax[1], -1,  0,  0 ],
+            [ aabbMin[0], aabbMin[2], aabbMin[1], -1,  0,  0 ],
+            [ aabbMin[0], aabbMin[2], aabbMax[1], -1,  0,  0 ]
+        ]
+        
+        faceData = [
+            [ 0,  2,  1  ],
+            [ 1,  2,  3  ],
+            [ 4,  6,  5  ],
+            [ 5,  6,  7  ],
+            [ 8,  10, 9  ],
+            [ 9,  10, 11 ],
+            [ 12, 14, 13 ],
+            [ 13, 14, 15 ],
+            [ 16, 18, 17 ],
+            [ 17, 18, 19 ],
+            [ 20, 22, 21 ],
+            [ 21, 22, 23 ]
+        ]
+        
+        bMesh    = bmesh.new()
+        vertices = bMesh.verts
+        vx       = []
+        
+        for v in vertexData:
+            vertex        = vertices.new()
+            vertex.co     = [ v[0], v[2], v[1] ] # todo aabb
+            vertex.normal = [ v[3], v[5], v[4] ]
+            vx.append(vertex)
+        
+        vertices.ensure_lookup_table()
+        
+        faces = bMesh.faces
+        
+        for f in faceData:
+            faces.new([ vx[f[0]], vx[f[1]], vx[f[2]] ])
+        
+        bMesh.to_mesh(meshData)
+        del bMesh
+    
+    
+    def DeserializeMesh(self, reader, materials, meshes):
+        type        = struct.unpack("B", reader.read(1))[0]
+        visualType  = 0
+        renderFlags = 0
         
         if type == 0x01:
             visualType  = struct.unpack("B", reader.read(1))[0]
             renderFlags = struct.unpack("H", reader.read(2))[0]
-        
-        if visualType != 0x00: # temporary
-            self.ShowError("Unsupported visual type {}!".format(visualType))
-            return False
         
         parentIdx            = struct.unpack("H", reader.read(2))[0]
         location             = struct.unpack("fff", reader.read(4 * 3))
@@ -266,7 +328,18 @@ class Mafia4ds_Importer:
         mesh.rotation_euler = mathutils.Quaternion([ rotation[0], rotation[1], rotation[3], rotation[2] ]).to_euler()
         
         if type == 0x01:
+            if visualType != 0x00:
+                self.ShowError("Unsupported visual type {}!".format(visualType))
+                return False
+            
             self.DeserializeVisual(reader, materials, mesh, meshData, meshProps)
+        
+        elif type == 0x06:
+            self.DeserializeDummy(reader, meshData)
+        
+        else:
+            self.ShowError("Unsupported mesh type {}!".format(type))
+            return False
         
         return True
     

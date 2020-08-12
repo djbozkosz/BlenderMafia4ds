@@ -9,7 +9,7 @@ class Mafia4ds_GlobalMeshProperties(types.PropertyGroup):
         items = [
             ("0x01", "Visual", ""),
             #("0x05", "Sector", ""),
-            #("0x06", "Dummy",  ""),
+            ("0x06", "Dummy",  ""),
             #("0x07", "Target", ""),
             #("0x0a", "Joint",  "")
         ]
@@ -49,12 +49,20 @@ class Mafia4ds_MeshPropertiesPanel(types.Panel):
         layout    = self.layout
         
         layout.prop(meshProps, "Type")
-        layout.prop(meshProps, "VisualType")
+        
+        if meshProps.Type == "0x01":
+            layout.prop(meshProps, "VisualType")
+        
         layout.prop(meshProps, "Parameters")
-        layout.prop(meshProps, "RenderFlags")
+        
+        if meshProps.Type == "0x01":
+            layout.prop(meshProps, "RenderFlags")
+            
         layout.prop(meshProps, "CullingFlags")
-        layout.prop(meshProps, "InstanceIdx")
-        layout.prop(meshProps, "LodRatio")
+        
+        if meshProps.Type == "0x01":
+            layout.prop(meshProps, "InstanceIdx")
+            layout.prop(meshProps, "LodRatio")
 
 
 def register():
