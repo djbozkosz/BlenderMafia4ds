@@ -144,7 +144,7 @@ class Mafia4ds_Importer:
     
     
     def DeserializeVisualLod(self, reader, materials, mesh, meshData, meshProps):
-        meshProps.lodRatio = struct.unpack("f", reader.read(4))[0]
+        meshProps.LodRatio = struct.unpack("f", reader.read(4))[0]
         bMesh              = bmesh.new()
         
         # vertices
@@ -212,6 +212,7 @@ class Mafia4ds_Importer:
                 newMesh        = data.objects.new(name, meshData)
                 newMesh.parent = mesh
                 mesh           = newMesh
+                meshProps      = mesh.MeshProps
                 
                 context.collection.objects.link(mesh)
             
