@@ -226,6 +226,31 @@ class Mafia4ds_Exporter:
             self.SerializeVisualLod(writer, lod, lod.MeshProps)
     
     
+    def SerializeDummy(self, writer, mesh):
+        aabb    = mesh.bound_box
+        aabbMin = [ aabb[0][0], aabb[0][1], aabb[0][2] ]
+        aabbMax = [ aabb[0][0], aabb[0][1], aabb[0][2] ]
+        
+        for corner in aabb:
+            if aabbMin[0] > corner[0]:
+                aabbMin[0] = corner[0]
+            if aabbMax[0] < corner[0]:
+                aabbMax[0] = corner[0]
+            
+            if aabbMin[1] > corner[1]:
+                aabbMin[1] = corner[1]
+            if aabbMax[1] < corner[1]:
+                aabbMax[1] = corner[1]
+            
+            if aabbMin[2] > corner[2]:
+                aabbMin[2] = corner[2]
+            if aabbMax[2] < corner[2]:
+                aabbMax[2] = corner[2]
+        
+        writer.write(struct.pack("fff",  aabbMin[0], aabbMin[2], aabbMin[1]))
+        writer.write(struct.pack("fff",  aabbMax[0], aabbMax[2], aabbMax[1]))
+    
+    
     def SerializeMesh(self, writer, mesh, meshes):
         meshProps = mesh.MeshProps
         writer.write(struct.pack("B", int(meshProps.Type, 0)))
@@ -252,8 +277,22 @@ class Mafia4ds_Exporter:
         self.SerializeString(writer, mesh.name)
         self.SerializeString(writer, meshProps.Parameters)
         
-        if meshProps.Type == "0x01":
+        type       = meshProps.Type
+        visualType = meshProps.VisualType
+        
+        if type == "0x01":
+            if visualType != "0x00":
+                self.ShowError("Unsupported visual type {}!".format(visualType))
+                return
+            
             self.SerializeVisual(writer, mesh, meshProps, meshes)
+        
+        elif type == "0x06":
+            self.SerializeDummy(writer, mesh)
+        
+        else:
+            self.ShowError("Unsupported mesh type {}!".format(type))
+            return
     
     
     def SerializeFile(self, writer):
