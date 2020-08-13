@@ -63,6 +63,10 @@ class Mafia4ds_Importer:
         ), title = "Error", icon = "ERROR")
     
     
+    def ShowWarning(self, message):
+        print(message)
+    
+    
     def DeserializeStringFixed(self, reader, length):
         tuple  = struct.unpack("{}c".format(length), reader.read(length))
         string = ""
@@ -179,7 +183,12 @@ class Mafia4ds_Importer:
             for faceIdx in range(faceCount):
                 vertexIdxs             = struct.unpack("HHH", reader.read(2 * 3))
                 vertexIdxsSwap         = [ vertexIdxs[0], vertexIdxs[2], vertexIdxs[1] ]
-                face                   = faces.new([ vertices[vertexIdxsSwap[0]], vertices[vertexIdxsSwap[1]], vertices[vertexIdxsSwap[2]] ])
+                
+                try:
+                    face               = faces.new([ vertices[vertexIdxsSwap[0]], vertices[vertexIdxsSwap[1]], vertices[vertexIdxsSwap[2]] ])
+                except:
+                    self.ShowWarning("Mesh {} has duplicate face [ {}, {}, {} ]!".format(mesh.name, vertexIdxsSwap[0], vertexIdxsSwap[1], vertexIdxsSwap[2]))
+                
                 face.material_index    = materialSlotIdx
                 
                 for loop, vertexIdx in zip(face.loops, vertexIdxsSwap):
@@ -190,7 +199,7 @@ class Mafia4ds_Importer:
             if materialIdx > 0:
                 materialSlot.material = materials[materialIdx - 1]
         
-        ops.object.shade_smooth()
+        ops.object.shade_smooth({ "object" : mesh })
         
         bMesh.to_mesh(meshData)
         del bMesh
