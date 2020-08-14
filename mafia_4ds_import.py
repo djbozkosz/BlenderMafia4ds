@@ -212,11 +212,12 @@ class Mafia4ds_Importer:
         if instanceIdx > 0:
             return;
         
+        meshName = mesh.name
         lodCount = struct.unpack("B", reader.read(1))[0]
         
         for lodIdx in range(lodCount):
             if lodIdx > 0:
-                name           = "{}_lod{}".format(mesh.name, lodIdx)
+                name           = "{}_lod{}".format(meshName, lodIdx)
                 meshData       = data.meshes.new(name)
                 newMesh        = data.objects.new(name, meshData)
                 newMesh.parent = mesh
