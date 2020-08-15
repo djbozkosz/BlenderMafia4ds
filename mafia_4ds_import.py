@@ -199,8 +199,6 @@ class Mafia4ds_Importer:
             if materialIdx > 0:
                 materialSlot.material = materials[materialIdx - 1]
         
-        ops.object.shade_smooth({ "object" : mesh })
-        
         bMesh.to_mesh(meshData)
         del bMesh
     
@@ -228,12 +226,17 @@ class Mafia4ds_Importer:
             
             self.DeserializeVisualLod(reader, materials, mesh, meshData, meshProps)
             
-            # commented out, as i was not able to enable them in editor
-            #if lodIdx > 0:
-            #    mesh.hide_viewport = True
+            mesh.select_set(True)
+            ops.object.shade_smooth()
+            
+            if lodIdx > 0:
+                mesh.hide_set(True)
+                mesh.hide_render = True
+            
+            mesh.select_set(False)
     
     
-    def DeserializeDummy(self, reader, meshData):
+    def DeserializeDummy(self, reader, mesh, meshData):
         aabbMin  = struct.unpack("fff", reader.read(4 * 3))
         aabbMax  = struct.unpack("fff", reader.read(4 * 3))
         
@@ -298,6 +301,11 @@ class Mafia4ds_Importer:
         
         bMesh.to_mesh(meshData)
         del bMesh
+        
+        mesh.select_set(True)
+        mesh.hide_set(True)
+        mesh.hide_render = True
+        mesh.select_set(False)
     
     
     def DeserializeMesh(self, reader, materials, meshes):
@@ -346,7 +354,7 @@ class Mafia4ds_Importer:
             self.DeserializeVisual(reader, materials, mesh, meshData, meshProps)
         
         elif type == 0x06:
-            self.DeserializeDummy(reader, meshData)
+            self.DeserializeDummy(reader, mesh, meshData)
         
         else:
             self.ShowError("Unsupported mesh type {}!".format(type))
