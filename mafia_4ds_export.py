@@ -312,7 +312,15 @@ class Mafia4ds_Exporter:
             self.SerializeMaterial(writer, material)
         
         # write all meshes
-        allMeshes = context.visible_objects
+        includeMeshesMode = self.Config.IncludeMeshes
+        allMeshes         = []
+        
+        if includeMeshesMode == "0":
+            allMeshes = context.collection.all_objects
+            
+        elif includeMeshesMode == "1":
+            allMeshes = context.visible_objects
+        
         meshes    = []
         meshCount = 0
         
@@ -354,14 +362,14 @@ class Mafia4ds_ExportDialog(types.Operator, io_utils.ExportHelper):
         maxlen  = 255
     )
     
-    #IncludeMeshes : props.EnumProperty(
-    #    name  = "Include Meshes",
-    #    items = [
-    #        ("0", "Selected Objects",  ""),
-    #        ("1", "Active Collection", "")
-    #    ],
-    #    default = "1"
-    #)
+    IncludeMeshes : props.EnumProperty(
+        name  = "Include Meshes",
+        items = [
+            ("0", "All in Collection",  ""),
+            ("1", "Visible Only", "")
+        ],
+        default = "0"
+    )
 
     def execute(self, context):
         exporter = Mafia4ds_Exporter(self)
