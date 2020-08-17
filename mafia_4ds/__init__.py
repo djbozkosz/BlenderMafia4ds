@@ -13,6 +13,21 @@ bl_info = {
 }
 
 
+if "bpy" in locals():
+    import importlib
+    
+    if "mafia_4ds_material_properties" in locals():
+        importlib.reload(mafia_4ds_material_properties)
+    if "mafia_4ds_mesh_properties" in locals():
+        importlib.reload(mafia_4ds_mesh_properties)
+    if "mafia_4ds_import" in locals():
+        importlib.reload(mafia_4ds_import)
+    if "mafia_4ds_export" in locals():
+        importlib.reload(mafia_4ds_export)
+
+
+import bpy
+
 from mafia_4ds import mafia_4ds_material_properties
 from mafia_4ds import mafia_4ds_mesh_properties
 from mafia_4ds import mafia_4ds_import
