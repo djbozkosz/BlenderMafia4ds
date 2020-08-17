@@ -1,8 +1,7 @@
+import bpy
 import bmesh
 import struct
 
-from bpy        import context
-from bpy        import data
 from bpy        import ops
 from bpy        import path
 from bpy        import props
@@ -128,7 +127,7 @@ class Mafia4ds_Exporter:
         writer.write(struct.pack("f", meshProps.LodRatio)) # lod ratio
         
         # apply modifiers
-        depsgraph = context.evaluated_depsgraph_get()
+        depsgraph = bpy.context.evaluated_depsgraph_get()
         mesh      = mesh.evaluated_get(depsgraph)
         
         bMesh     = bmesh.new()
@@ -190,7 +189,7 @@ class Mafia4ds_Exporter:
                 material = mesh.material_slots[lastMatIdx].material
                 
                 if material:
-                    materialIdx = data.materials.find(material.name)
+                    materialIdx = bpy.data.materials.find(material.name)
             
             writer.write(struct.pack("H", materialIdx + 1))
         
@@ -305,7 +304,7 @@ class Mafia4ds_Exporter:
         writer.write(struct.pack("Q", guid)) # guid
         
         # write all materials
-        materials = data.materials
+        materials = bpy.data.materials
         writer.write(struct.pack("H", len(materials)))
         
         for material in materials:
@@ -316,10 +315,10 @@ class Mafia4ds_Exporter:
         allMeshes         = []
         
         if includeMeshesMode == "0":
-            allMeshes = context.collection.all_objects
+            allMeshes = bpy.context.collection.all_objects
             
         elif includeMeshesMode == "1":
-            allMeshes = context.visible_objects
+            allMeshes = bpy.context.visible_objects
         
         meshes    = []
         meshCount = 0

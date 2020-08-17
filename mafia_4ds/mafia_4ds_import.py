@@ -1,9 +1,8 @@
+import bpy
 import bmesh
 import struct
 import mathutils
 
-from bpy        import context
-from bpy        import data
 from bpy        import ops
 from bpy        import path
 from bpy        import props
@@ -51,14 +50,14 @@ class Mafia4ds_Importer:
         if len(diffuse) == 0:
             return
             
-        file        = data.images.load(filepath = "C:/Hry/Mafia/maps/{}".format(diffuse), check_existing = True)
+        file        = bpy.data.images.load(filepath = "C:/Hry/Mafia/maps/{}".format(diffuse), check_existing = True)
         image.image = file
     
     
     def ShowError(self, message):
         print(message)
         
-        context.window_manager.popup_menu(lambda self, context:
+        bpy.context.window_manager.popup_menu(lambda self, context:
             self.layout.label(text = message
         ), title = "Error", icon = "ERROR")
     
@@ -83,7 +82,7 @@ class Mafia4ds_Importer:
     
     
     def DeserializeMaterial(self, reader):
-        material = data.materials.new("material")
+        material = bpy.data.materials.new("material")
         matProps = material.MaterialProps
         
         # material flags
@@ -216,13 +215,13 @@ class Mafia4ds_Importer:
         for lodIdx in range(lodCount):
             if lodIdx > 0:
                 name           = "{}_lod{}".format(meshName, lodIdx)
-                meshData       = data.meshes.new(name)
-                newMesh        = data.objects.new(name, meshData)
+                meshData       = bpy.data.meshes.new(name)
+                newMesh        = bpy.data.objects.new(name, meshData)
                 newMesh.parent = mesh
                 mesh           = newMesh
                 meshProps      = mesh.MeshProps
                 
-                context.collection.objects.link(mesh)
+                bpy.context.collection.objects.link(mesh)
             
             self.DeserializeVisualLod(reader, materials, mesh, meshData, meshProps)
             
@@ -326,10 +325,10 @@ class Mafia4ds_Importer:
         name                 = self.DeserializeString(reader)
         parameters           = self.DeserializeString(reader)
         
-        meshData             = data.meshes.new(name)
-        mesh                 = data.objects.new(name, meshData)
+        meshData             = bpy.data.meshes.new(name)
+        mesh                 = bpy.data.objects.new(name, meshData)
         
-        context.collection.objects.link(mesh)
+        bpy.context.collection.objects.link(mesh)
         meshes.append(mesh)
         
         meshProps              = mesh.MeshProps
