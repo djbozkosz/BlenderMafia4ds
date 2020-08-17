@@ -13,10 +13,10 @@ bl_info = {
 }
 
 
-import mafia_4ds_material_properties
-import mafia_4ds_mesh_properties
-import mafia_4ds_import
-import mafia_4ds_export
+from mafia_4ds import mafia_4ds_material_properties
+from mafia_4ds import mafia_4ds_mesh_properties
+from mafia_4ds import mafia_4ds_import
+from mafia_4ds import mafia_4ds_export
 
 
 def register():
