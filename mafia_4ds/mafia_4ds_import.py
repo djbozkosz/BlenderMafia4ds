@@ -1,5 +1,6 @@
 import bpy
 import bmesh
+import os
 import struct
 import mathutils
 
@@ -9,6 +10,7 @@ from bpy        import props
 from bpy        import types
 from bpy        import utils
 from bpy_extras import io_utils
+from os         import path
 
 
 class Mafia4ds_Importer:
@@ -50,7 +52,7 @@ class Mafia4ds_Importer:
         if len(diffuse) == 0:
             return
             
-        file        = bpy.data.images.load(filepath = "C:/Hry/Mafia/maps/{}".format(diffuse), check_existing = True)
+        file        = bpy.data.images.load(filepath = "{}/../maps/{}".format(os.path.dirname(self.Config.filepath), diffuse), check_existing = True)
         image.image = file
     
     
@@ -233,6 +235,10 @@ class Mafia4ds_Importer:
                 mesh.hide_render = True
             
             mesh.select_set(False)
+
+    def DeserializeBillboard(self, reader, meshProps):
+        meshProps.Axis     = struct.unpack("I", reader.read(4))[0]
+        meshProps.AxisMode = struct.unpack("B", reader.read(1))[0]
     
     
     def DeserializeDummy(self, reader, mesh, meshData):
@@ -346,11 +352,17 @@ class Mafia4ds_Importer:
         mesh.rotation_euler = mathutils.Quaternion([ rotation[0], rotation[1], rotation[3], rotation[2] ]).to_euler()
         
         if type == 0x01:
-            if visualType != 0x00:
+            
+            if visualType == 0x00:
+                self.DeserializeVisual(reader, materials, mesh, meshData, meshProps)
+
+            elif visualType == 0x04:
+                self.DeserializeVisual(reader, materials, mesh, meshData, meshProps)
+                self.DeserializeBillboard(reader, meshProps)
+
+            else:
                 self.ShowError("Unsupported visual type {}!".format(visualType))
                 return False
-            
-            self.DeserializeVisual(reader, materials, mesh, meshData, meshProps)
         
         elif type == 0x06:
             self.DeserializeDummy(reader, mesh, meshData)
