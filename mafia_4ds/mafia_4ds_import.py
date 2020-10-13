@@ -236,7 +236,7 @@ class Mafia4ds_Importer:
             
             mesh.select_set(False)
 
-    def DeserializeBillboard(self, reader, materials, mesh, meshData, meshProps):
+    def DeserializeBillboard(self, reader, meshProps):
         meshProps.Axis     = struct.unpack("I", reader.read(4))[0]
         meshProps.AxisMode = struct.unpack("B", reader.read(1))[0]
     
@@ -358,7 +358,7 @@ class Mafia4ds_Importer:
 
             elif visualType == 0x04:
                 self.DeserializeVisual(reader, materials, mesh, meshData, meshProps)
-                self.DeserializeBillboard(reader, materials, mesh, meshData, meshProps)
+                self.DeserializeBillboard(reader, meshProps)
 
             else:
                 self.ShowError("Unsupported visual type {}!".format(visualType))

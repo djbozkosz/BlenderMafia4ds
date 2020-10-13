@@ -224,6 +224,10 @@ class Mafia4ds_Exporter:
         for lod in lods:
             self.SerializeVisualLod(writer, lod, lod.MeshProps)
     
+    def SerializeBillboard(self, writer, meshProps):
+        writer.write(struct.pack("I", meshProps.Axis))
+        writer.write(struct.pack("?", meshProps.AxisMode))
+
     
     def SerializeDummy(self, writer, mesh):
         aabb    = mesh.bound_box
@@ -280,11 +284,16 @@ class Mafia4ds_Exporter:
         visualType = meshProps.VisualType
         
         if type == "0x01":
-            if visualType != "0x00":
+            if visualType == "0x00":
+                self.SerializeVisual(writer, mesh, meshProps, meshes)
+
+            elif visualType == "0x04":
+                self.SerializeVisual(writer, mesh, meshProps, meshes)
+                self.SerializeBillboard(writer, meshProps)
+
+            else:
                 self.ShowError("Unsupported visual type {}!".format(visualType))
                 return
-            
-            self.SerializeVisual(writer, mesh, meshProps, meshes)
         
         elif type == "0x06":
             self.SerializeDummy(writer, mesh)
