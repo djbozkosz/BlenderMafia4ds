@@ -1,5 +1,6 @@
 import bpy
 import bmesh
+import os
 import struct
 import mathutils
 
@@ -9,6 +10,7 @@ from bpy        import props
 from bpy        import types
 from bpy        import utils
 from bpy_extras import io_utils
+from os         import path
 
 
 class Mafia4ds_Importer:
@@ -50,7 +52,7 @@ class Mafia4ds_Importer:
         if len(diffuse) == 0:
             return
             
-        file        = bpy.data.images.load(filepath = "C:/Hry/Mafia/maps/{}".format(diffuse), check_existing = True)
+        file        = bpy.data.images.load(filepath = "{}/../maps/{}".format(os.path.dirname(self.Config.filepath), diffuse), check_existing = True)
         image.image = file
     
     
