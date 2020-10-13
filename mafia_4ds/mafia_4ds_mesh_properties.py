@@ -21,7 +21,7 @@ class Mafia4ds_GlobalMeshProperties(types.PropertyGroup):
             ("0x00", "Mesh",        ""),
             #("0x02", "SingleMesh",  ""),
             #("0x03", "SingleMorph", ""),
-            #("0x04", "Billboard",   ""),
+            ("0x04", "Billboard",   ""),
             #("0x05", "Morph",       ""),
             #("0x06", "Glow",        ""),
             #("0x08", "Mirror",      "")
@@ -33,6 +33,8 @@ class Mafia4ds_GlobalMeshProperties(types.PropertyGroup):
     CullingFlags : props.IntProperty   (name = "Culling Flags", default = 0x09)
     InstanceIdx  : props.IntProperty   (name = "Instance Idx", default = 0)
     LodRatio     : props.FloatProperty (name = "Lod Ratio", default = 0.0)
+    Axis         : props.IntProperty   (name = "Axis", default = 0)
+    AxisMode     : props.BoolProperty  (name = "Axis Mode", default = False)
 
 
 class Mafia4ds_MeshPropertiesPanel(types.Panel):
@@ -63,6 +65,10 @@ class Mafia4ds_MeshPropertiesPanel(types.Panel):
         if meshProps.Type == "0x01":
             layout.prop(meshProps, "InstanceIdx")
             layout.prop(meshProps, "LodRatio")
+
+        if meshProps.Type == "0x01" and meshProps.VisualType == "0x04":
+            layout.prop(meshProps, "Axis")
+            layout.prop(meshProps, "AxisMode")
 
 
 def register():
