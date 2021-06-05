@@ -281,7 +281,7 @@ class Mafia4ds_Exporter:
         
         if type == "0x01":
             if visualType != "0x00":
-                self.ShowError("Unsupported visual type {}!".format(visualType))
+                ShowError("Unsupported visual type {}!".format(visualType))
                 return
             
             self.SerializeVisual(writer, mesh, meshProps, meshes)
@@ -290,7 +290,7 @@ class Mafia4ds_Exporter:
             self.SerializeDummy(writer, mesh)
         
         else:
-            self.ShowError("Unsupported mesh type {}!".format(type))
+            ShowError("Unsupported mesh type {}!".format(type))
             return
     
     
@@ -357,7 +357,7 @@ class Mafia4ds_ExportDialog(types.Operator, io_utils.ExportHelper):
 
     filter_glob : props.StringProperty(
         default = "*.4ds",
-        options = {'HIDDEN'},
+        options = {"HIDDEN"},
         maxlen  = 255
     )
     
@@ -373,6 +373,20 @@ class Mafia4ds_ExportDialog(types.Operator, io_utils.ExportHelper):
     def execute(self, context):
         exporter = Mafia4ds_Exporter(self)
         return exporter.Export(self.filepath)
+
+
+def ShowError(message):
+    def draw(self, context):
+        print(message)
+        
+        for line in message.split("\n"):
+            self.layout.label(text = line)
+    
+    bpy.context.window_manager.popup_menu(draw, title = "Error", icon = "ERROR")
+
+
+def ShowWarning(message):
+    print(message)
 
 
 def MenuExport(self, context):

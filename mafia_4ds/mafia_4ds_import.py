@@ -49,21 +49,10 @@ class Mafia4ds_Importer:
         
         if len(diffuse) == 0:
             return
-            
-        file        = bpy.data.images.load(filepath = "C:/Hry/Mafia/maps/{}".format(diffuse), check_existing = True)
-        image.image = file
-    
-    
-    def ShowError(self, message):
-        print(message)
         
-        bpy.context.window_manager.popup_menu(lambda self, context:
-            self.layout.label(text = message
-        ), title = "Error", icon = "ERROR")
-    
-    
-    def ShowWarning(self, message):
-        print(message)
+        filePath    = "{}maps/{}".format(GetPreferences().DataPath, diffuse)
+        file        = bpy.data.images.load(filepath = filePath, check_existing = True)
+        image.image = file
     
     
     def DeserializeStringFixed(self, reader, length):
@@ -186,7 +175,7 @@ class Mafia4ds_Importer:
                 try:
                     face               = faces.new([ vertices[vertexIdxsSwap[0]], vertices[vertexIdxsSwap[1]], vertices[vertexIdxsSwap[2]] ])
                 except:
-                    self.ShowWarning("Mesh {} has duplicate face [ {}, {}, {} ]!".format(mesh.name, vertexIdxsSwap[0], vertexIdxsSwap[1], vertexIdxsSwap[2]))
+                    ShowWarning("Mesh {} has duplicate face [ {}, {}, {} ]!".format(mesh.name, vertexIdxsSwap[0], vertexIdxsSwap[1], vertexIdxsSwap[2]))
                 
                 face.material_index    = materialSlotIdx
                 
@@ -325,6 +314,15 @@ class Mafia4ds_Importer:
         name                 = self.DeserializeString(reader)
         parameters           = self.DeserializeString(reader)
         
+        if type == 0x01:
+            if visualType != 0x00:
+                ShowError("Unsupported visual type {} of mesh {}!".format(visualType, name))
+                return False
+        
+        elif type != 0x06:
+            ShowError("Unsupported mesh type {} of mesh {}!".format(type, name))
+            return False
+        
         meshData             = bpy.data.meshes.new(name)
         mesh                 = bpy.data.objects.new(name, meshData)
         
@@ -346,18 +344,11 @@ class Mafia4ds_Importer:
         mesh.rotation_euler = mathutils.Quaternion([ rotation[0], rotation[1], rotation[3], rotation[2] ]).to_euler()
         
         if type == 0x01:
-            if visualType != 0x00:
-                self.ShowError("Unsupported visual type {}!".format(visualType))
-                return False
-            
-            self.DeserializeVisual(reader, materials, mesh, meshData, meshProps)
+            if visualType == 0x00:
+                self.DeserializeVisual(reader, materials, mesh, meshData, meshProps)
         
         elif type == 0x06:
             self.DeserializeDummy(reader, mesh, meshData)
-        
-        else:
-            self.ShowError("Unsupported mesh type {}!".format(type))
-            return False
         
         return True
     
@@ -365,12 +356,12 @@ class Mafia4ds_Importer:
     def DeserializeFile(self, reader):
         fourcc = self.DeserializeStringFixed(reader, 4)
         if fourcc != "4DS\0":
-            self.ShowError("Not a 4DS file!")
+            ShowError("Not a 4DS file!")
             return
         
         version = struct.unpack("H", reader.read(2))[0]
         if version != 0x1d:
-            self.ShowError("Invalid 4DS version {}!".format(version))
+            ShowError("Invalid 4DS version {}!".format(version))
             return
         
         scene      = types.Scene
@@ -416,13 +407,45 @@ class Mafia4ds_ImportDialog(types.Operator, io_utils.ImportHelper):
 
     filter_glob : props.StringProperty(
         default = "*.4ds",
-        options = {'HIDDEN'},
+        options = {"HIDDEN"},
         maxlen  = 255
     )
 
     def execute(self, context):
+        if len(GetPreferences().DataPath) == 0:
+            ShowError("No game data path set!\n"
+                "\n"
+                "Go into Edit -> Preferences -> Addons,\n"
+                "search for Mafia 4ds addon, expand it,\n"
+                "click to Game Data Path selector\n"
+                "and choose appropriate directory.")
+            
+            return {'CANCELLED'}
+        
+        
         exporter = Mafia4ds_Importer(self)
         return exporter.Import(self.filepath)
+
+
+def ShowError(message):
+    def draw(self, context):
+        print(message)
+        
+        for line in message.split("\n"):
+            self.layout.label(text = line)
+    
+    bpy.context.window_manager.popup_menu(draw, title = "Error", icon = "ERROR")
+
+
+def ShowWarning(message):
+    print(message)
+
+
+def GetPreferences():
+    globalPreferences = bpy.context.preferences
+    addonPreferences  = globalPreferences.addons[__package__].preferences
+    
+    return addonPreferences
 
 
 def MenuImport(self, context):

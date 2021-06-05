@@ -1,6 +1,6 @@
 ## BlenderMafia4ds
 
-[![Version: 1.0](https://img.shields.io/badge/version-1.0-lightgrey.svg)](https://github.com/djbozkosz/BlenderMafia4ds)
+[![Version: 1.0.1](https://img.shields.io/badge/version-1.0.1-lightgrey.svg)](https://github.com/djbozkosz/BlenderMafia4ds)
 [![Game: Mafia](https://img.shields.io/badge/game-mafia-red.svg)](https://mafiagame.com)
 [![Blender: 2.8](https://img.shields.io/badge/blender-2.8-green.svg)](https://www.blender.org/)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](https://github.com/djbozkosz/BlenderMafia4ds/blob/master/LICENSE)
@@ -16,7 +16,8 @@ Addon for Blender 2.8 with import and export support of Mafia PC 4ds model files
 3. Open Blender and go to `Edit` -> `Preferences...`.
 4. In left panel open `Add-ons` and click to `Install...`.
 5. Choose your created zip file.
-6. Now addon should be filtered in addons list. Check it to enable it.
+6. Addon should be filtered in addons list now. Expand selection and check it to enable addon.
+7. Under `Preferences` choose proper directory of `Game Data Path`.
 
 ### Features:
 #### Supported:
