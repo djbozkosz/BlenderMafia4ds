@@ -2,7 +2,7 @@ bl_info = {
     "name"        : "Mafia 4DS format",
     "description" : "Mafia 4DS import / export addon.",
     "author"      : "djbozkosz",
-    "version"     : (1, 0),
+    "version"     : (1, 0, 0),
     "blender"     : (2, 80, 0),
     "location"    : "File > Import, File > Export, Object Properties, Material Properties",
     "warning"     : "Experimental Version! Backup your files before export!",
