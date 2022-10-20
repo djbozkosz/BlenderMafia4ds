@@ -260,9 +260,15 @@ class Mafia4ds_Exporter:
         
         parentIdx = 0
         parent    = mesh.parent
-        
+
         if parent:
-            parentIdx = meshes.index(parent) + 1
+            idxCounter = 1
+            for im in meshes:
+                if im == parent:
+                    parentIdx = idxCounter
+                    break
+                elif not self.IsLod(im):
+                    idxCounter += 1
         
         location = mesh.location
         scale    = mesh.scale
